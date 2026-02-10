@@ -1,5 +1,3 @@
-import { GoogleGenAI } from "@google/genai";
-
 export type NoteStyle =
   | "Poetic"
   | "Simple"
@@ -7,69 +5,79 @@ export type NoteStyle =
   | "Humorous"
   | "Empathetic";
 
+const TOGETHER_API_URL = "https://api.together.xyz/v1/completions";
+
+const callTogetherAI = async (prompt: string): Promise<string> => {
+  const apiKey = (import.meta.env as any).VITE_TOGETHER_API_KEY;
+
+  if (!apiKey) {
+    throw new Error(
+      "VITE_TOGETHER_API_KEY is not set. Please add it to your .env.local file.",
+    );
+  }
+
+  try {
+    const response = await fetch(TOGETHER_API_URL, {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+      body: JSON.stringify({
+        model: "meta-llama/Llama-2-7b-chat-hf",
+        prompt: prompt,
+        max_tokens: 200,
+        temperature: 0.7,
+        top_p: 0.7,
+        repetition_penalty: 1,
+      }),
+    });
+
+    const result = await response.json();
+    console.log("Together AI Response:", result);
+
+    if (result.output?.choices?.[0]?.text) {
+      let text = result.output.choices[0].text.trim();
+      return text;
+    }
+
+    throw new Error("Invalid response from Together AI");
+  } catch (error) {
+    console.error("Together AI Error:", error);
+    return "";
+  }
+};
+
 export const generateRoseDayNote = async (
   name: string,
   style: NoteStyle,
 ): Promise<string> => {
   try {
-    // Initialize GoogleGenAI with Vite's environment variable
-    const apiKey = (import.meta.env as any).VITE_GEMINI_API_KEY;
-
-    if (!apiKey) {
-      throw new Error(
-        "VITE_GEMINI_API_KEY is not set. Please add it to your .env.local file.",
-      );
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
-
     let styleInstruction = "";
     switch (style) {
       case "Poetic":
         styleInstruction =
-          "Use high romanticism, rich metaphors, and soul-stirring language. Talk about fate, eternity, and the universe. Avoid modern slang completely.";
+          "romantic, metaphorical, soul-stirring, about fate and eternity";
         break;
       case "Simple":
-        styleInstruction =
-          "Be extremely concise, minimalist, and pure. Use plain but deeply heartfelt words like 'always', 'only', and 'mine'. No metaphors, just raw truth.";
+        styleInstruction = "concise, minimalist, pure, heartfelt";
         break;
       case "Playful":
-        styleInstruction =
-          "Be cheeky, flirtatious, and lighthearted. Use cute puns or light humor about being apart. The note should make her giggle while feeling loved.";
+        styleInstruction = "cheeky, flirtatious, lighthearted, cute puns";
         break;
       case "Humorous":
         styleInstruction =
-          "Be funny, witty, and slightly sarcastic in a cute way. Include a clever joke about the distance or a silly pun about roses. Make her laugh out loud.";
+          "funny, witty, sarcastic in a cute way, clever jokes";
         break;
       case "Empathetic":
         styleInstruction =
-          "Be deeply understanding, supportive, and warm. Acknowledge how hard the distance can be, but emphasize your presence and love. Make her feel seen, comforted, and deeply cared for.";
+          "deeply understanding, supportive, warm, acknowledging distance";
         break;
     }
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: `Generate a ${style} Rose Day message for "${name}". ${styleInstruction} Mention rose won't wilt. Add 2-3 love emojis (💋❤️💖💝💕). 25-40 words.`,
-      config: {
-        maxOutputTokens: 80,
-        temperature: 0.9,
-      },
-    });
+    const prompt = `Write a ${style} Rose Day love note for ${name}. Style: ${styleInstruction}. Include the rose is digital and won't wilt. Add 2-3 love emojis (💋❤️💖). Keep it 25-40 words. Message:`;
 
-    console.log("API Response:", response);
-
-    // Handle response object - check for text property or candidates array
-    let text = "";
-    if (response.text) {
-      text = response.text;
-    } else if (response.candidates && response.candidates[0]) {
-      text = response.candidates[0].content?.parts?.[0]?.text || "";
-    }
-
-    if (!text) {
-      console.warn("No text received from API, using fallback");
-    }
-
+    const text = await callTogetherAI(prompt);
     return (
       text ||
       `My dear ${name}, just like this rose, my feelings for you grow more beautiful every single day.`
@@ -80,93 +88,49 @@ export const generateRoseDayNote = async (
   }
 };
 
-// Generate multiple candidates and have the model pick the best one.
+// Generate multiple candidates and pick the best one
 export const generateBestRoseDayNote = async (
   name: string,
   style: NoteStyle,
 ): Promise<string> => {
   try {
-    const apiKey = (import.meta.env as any).VITE_GEMINI_API_KEY;
-
-    if (!apiKey) {
-      throw new Error(
-        "VITE_GEMINI_API_KEY is not set. Please add it to your .env.local file.",
-      );
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
-
     let styleInstruction = "";
     switch (style) {
       case "Poetic":
         styleInstruction =
-          "Use high romanticism, rich metaphors, and soul-stirring language. Talk about fate, eternity, and the universe. Avoid modern slang completely.";
+          "romantic, metaphorical, soul-stirring, about fate and eternity";
         break;
       case "Simple":
-        styleInstruction =
-          "Be extremely concise, minimalist, and pure. Use plain but deeply heartfelt words like 'always', 'only', and 'mine'. No metaphors, just raw truth.";
+        styleInstruction = "concise, minimalist, pure, heartfelt";
         break;
       case "Playful":
-        styleInstruction =
-          "Be cheeky, flirtatious, and lighthearted. Use cute puns or light humor about being apart. The note should make her giggle while feeling loved.";
+        styleInstruction = "cheeky, flirtatious, lighthearted, cute puns";
         break;
       case "Humorous":
         styleInstruction =
-          "Be funny, witty, and slightly sarcastic in a cute way. Include a clever joke about the distance or a silly pun about roses. Make her laugh out loud.";
+          "funny, witty, sarcastic in a cute way, clever jokes";
         break;
       case "Empathetic":
         styleInstruction =
-          "Be deeply understanding, supportive, and warm. Acknowledge how hard the distance can be, but emphasize your presence and love. Make her feel seen, comforted, and deeply cared for.";
+          "deeply understanding, supportive, warm, acknowledging distance";
         break;
     }
 
-    // First: ask for 5 distinctly different candidates in one response
-    const candidatesResp = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: `Generate 5 different ${style} Rose Day messages for "${name}". ${styleInstruction} Each: 25-40 words, 2-3 emojis (💋❤️💖💝💕), mentions digital rose. Label 1-5) with line breaks. All must be completely distinct.`,
-      config: {
-        maxOutputTokens: 400,
-        temperature: 0.9,
-      },
-    });
+    // Generate 3 candidates in one call
+    const candidatesPrompt = `Write 3 different ${style} Rose Day messages for ${name}. Style: ${styleInstruction}. Each should mention the digital rose won't wilt, have 2-3 love emojis (💋❤️💖), be 25-40 words, and sound completely different. Format as: 1) ... 2) ... 3) ...`;
 
-    console.log("Candidates Response:", candidatesResp);
-
-    let candidatesText = "";
-    if (candidatesResp.text) {
-      candidatesText = candidatesResp.text;
-    } else if (candidatesResp.candidates && candidatesResp.candidates[0]) {
-      candidatesText =
-        candidatesResp.candidates[0].content?.parts?.[0]?.text || "";
-    }
+    const candidatesText = await callTogetherAI(candidatesPrompt);
+    console.log("Candidates:", candidatesText);
 
     if (!candidatesText) {
-      console.warn("No candidates text received", candidatesResp);
       throw new Error("Failed to generate candidates");
     }
 
-    // Second: ask the model to pick the single best candidate that matches the style
-    const pickResp = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: `Candidates:\n${candidatesText}\n\nPick BEST "${style}": ${styleInstruction}\nReturn ONLY message (no numbering/explanation).`,
-      config: {
-        maxOutputTokens: 100,
-        temperature: 0.0,
-      },
-    });
+    // Pick the best one
+    const pickPrompt = `Below are 3 Rose Day messages:\n${candidatesText}\n\nChoose the BEST one that matches "${style}" style: ${styleInstruction}. Return ONLY that message text, nothing else.`;
 
-    console.log("Pick Response:", pickResp);
-
-    let bestText = "";
-    if (pickResp.text) {
-      bestText = pickResp.text;
-    } else if (pickResp.candidates && pickResp.candidates[0]) {
-      bestText = pickResp.candidates[0].content?.parts?.[0]?.text || "";
-    }
-
-    if (!bestText) {
-      console.warn("No best text received", pickResp);
-    }
+    const bestText = await callTogetherAI(pickPrompt);
+    console.log("Best:", bestText);
 
     return (
       bestText ||
